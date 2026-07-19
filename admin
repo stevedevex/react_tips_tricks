@@ -1,0 +1,487 @@
+## add admin page
+import { useState } from 'react';
+import { useRecoilValue } from 'recoil';
+import { Search, Pencil } from '../../primitives';
+import { useAdminConfig } from '../../hooks/useAdminConfig';
+import { useUi } from '../../hooks/useUi';
+import { userAtom } from '../../state/userAtom';
+import { EditConfigModal } from './EditConfigModal';
+import type { AdminConfigEntry } from '../../schemas/adminConfig';
+import './AdminConfigPage.css';
+
+function formatDate(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+    time: d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' UTC',
+  };
+}
+
+export function AdminConfigPage() {
+  const { entries, updateValue } = useAdminConfig();
+  const { showToast } = useUi();
+  const user = useRecoilValue(userAtom);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingEntry, setEditingEntry] = useState<AdminConfigEntry | null>(null);
+
+  const filteredEntries = entries.filter((entry) =>
+    entry.key.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSave = (value: string) => {
+    if (!editingEntry) return;
+    updateValue(editingEntry.key, value, `${user.firstName} ${user.lastName}`);
+    showToast(`${editingEntry.key} updated`);
+    setEditingEntry(null);
+  };
+
+  return (
+    <div className="admin-config">
+      {/* Header */}
+      <header className="admin-config__header">
+        <div>
+          <div className="admin-config__eyebrow">ADMIN</div>
+          <h1 className="admin-config__title">Configuration management</h1>
+          <p className="admin-config__lead">
+            Application configuration keys and their current values. Changes take effect immediately.
+          </p>
+        </div>
+      </header>
+
+      {/* Toolbar */}
+      <div className="admin-config__toolbar">
+        <div className="admin-config__search-wrap">
+          <Search size={16} className="admin-config__search-icon" />
+          <input
+            className="admin-config__search"
+            type="text"
+            placeholder="Search by key…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="admin-config__table-wrap">
+        <table className="admin-config__table">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Value</th>
+              <th>Updated by</th>
+              <th>Updated on</th>
+              <th aria-label="Edit"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEntries.map((entry) => {
+              const { date, time } = formatDate(entry.updated_on);
+              return (
+                <tr key={entry.key} className="admin-config__row">
+                  <td><span className="mono">{entry.key}</span></td>
+                  <td className="admin-config__value-cell">
+                    <span className="mono">{entry.value}</span>
+                  </td>
+                  <td>{entry.updated_by}</td>
+                  <td>{date}<br /><span className="muted">{time}</span></td>
+                  <td className="right">
+                    <button
+                      className="admin-config__icon-btn"
+                      onClick={() => setEditingEntry(entry)}
+                      aria-label={`Edit ${entry.key}`}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
+      <div className="admin-config__footer">
+        <span className="muted">Showing {filteredEntries.length} of {entries.length}</span>
+      </div>
+
+      {editingEntry && (
+        <EditConfigModal
+          entry={editingEntry}
+          onCancel={() => setEditingEntry(null)}
+          onSave={handleSave}
+        />
+      )}
+    </div>
+  );
+}
+
+
+.admin-config {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+}
+
+/* Header */
+.admin-config__header {
+  margin-bottom: var(--space-5);
+}
+
+.admin-config__eyebrow {
+  font-size: var(--text-eyebrow-size);
+  font-weight: var(--text-eyebrow-weight);
+  text-transform: uppercase;
+  letter-spacing: var(--text-eyebrow-tracking);
+  color: var(--ubs-electric-red);
+  margin-bottom: var(--space-2);
+}
+
+.admin-config__title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: var(--space-2);
+}
+
+.admin-config__lead {
+  color: var(--ubs-gray-muted);
+  max-width: 600px;
+}
+
+/* Toolbar */
+.admin-config__toolbar {
+  display: flex;
+  margin-bottom: var(--space-4);
+}
+
+.admin-config__search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 360px;
+}
+
+.admin-config__search-icon {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ubs-gray-muted);
+  pointer-events: none;
+}
+
+.admin-config__search {
+  width: 100%;
+  padding: var(--space-2) var(--space-4) var(--space-2) 40px;
+  border: var(--border-normal) solid var(--ubs-gray-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.admin-config__search:focus {
+  border-color: var(--ubs-midnight-blue);
+}
+
+/* Table */
+.admin-config__table-wrap {
+  overflow-x: auto;
+  border: var(--border-normal) solid var(--ubs-gray-border);
+  border-radius: var(--radius-sm);
+}
+
+.admin-config__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.admin-config__table thead th {
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ubs-gray-muted);
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  background: var(--ubs-gray-light);
+  border-bottom: var(--border-normal) solid var(--ubs-gray-border);
+  white-space: nowrap;
+}
+
+.admin-config__row td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-hairline) solid var(--ubs-gray-border);
+  vertical-align: middle;
+}
+
+.admin-config__value-cell {
+  max-width: 320px;
+}
+
+.admin-config__value-cell .mono {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-config__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--ubs-gray-muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.admin-config__icon-btn:hover {
+  background: var(--ubs-gray-faint);
+  color: var(--ubs-charcoal);
+}
+
+/* Footer */
+.admin-config__footer {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) 0;
+}
+
+
+
+import { useEffect, useState } from 'react';
+import { Button, X } from '../../primitives';
+import type { AdminConfigEntry } from '../../schemas/adminConfig';
+import './EditConfigModal.css';
+
+interface EditConfigModalProps {
+  entry: AdminConfigEntry;
+  onCancel: () => void;
+  onSave: (value: string) => void;
+}
+
+export function EditConfigModal({ entry, onCancel, onSave }: EditConfigModalProps) {
+  const [draftValue, setDraftValue] = useState(entry.value);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onCancel]);
+
+  return (
+    <>
+      <div className="edit-config-scrim" onClick={onCancel} aria-hidden="true" />
+      <div className="edit-config-modal" role="dialog" aria-label={`Edit ${entry.key}`}>
+        <div className="edit-config-modal__header">
+          <span>Edit config value</span>
+          <button className="edit-config-modal__close" onClick={onCancel} aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="edit-config-modal__body">
+          <label className="edit-config-modal__label">Key</label>
+          <div className="edit-config-modal__key mono">{entry.key}</div>
+          <label className="edit-config-modal__label" htmlFor="edit-config-value">Value</label>
+          <textarea
+            id="edit-config-value"
+            className="edit-config-modal__textarea"
+            value={draftValue}
+            onChange={(e) => setDraftValue(e.target.value)}
+            autoFocus
+            spellCheck={false}
+          />
+        </div>
+        <div className="edit-config-modal__footer">
+          <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+          <Button variant="primary" onClick={() => onSave(draftValue)}>Save</Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+
+.edit-config-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.edit-config-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 910;
+  width: 520px;
+  max-width: calc(100vw - var(--space-5) * 2);
+  max-height: calc(100vh - var(--space-6) * 2);
+  background: var(--ubs-pure-white);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-config-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--border-hairline) solid var(--ubs-gray-border);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ubs-black);
+  flex-shrink: 0;
+}
+
+.edit-config-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--ubs-gray-muted);
+}
+
+.edit-config-modal__close:hover {
+  background: var(--ubs-gray-faint);
+  color: var(--ubs-charcoal);
+}
+
+.edit-config-modal__body {
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow-y: auto;
+}
+
+.edit-config-modal__label {
+  font-size: var(--text-caption-size);
+  color: var(--ubs-gray-muted);
+  font-weight: 600;
+  margin-top: var(--space-2);
+}
+
+.edit-config-modal__label:first-child {
+  margin-top: 0;
+}
+
+.edit-config-modal__key {
+  font-size: 0.8125rem;
+  color: var(--ubs-charcoal);
+  padding: var(--space-2) var(--space-3);
+  background: var(--ubs-gray-faint);
+  border-radius: var(--radius-sm);
+}
+
+.edit-config-modal__textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: var(--space-3);
+  border: var(--border-normal) solid var(--ubs-gray-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.edit-config-modal__textarea:focus {
+  border-color: var(--ubs-midnight-blue);
+}
+
+.edit-config-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: var(--border-hairline) solid var(--ubs-gray-border);
+  flex-shrink: 0;
+}
+
+
+import { atom } from 'recoil';
+import type { AdminConfigEntry } from '../schemas/adminConfig';
+import { MOCK_ADMIN_CONFIG } from '../mocks/admin-config-fixtures';
+
+// Dev mock — populated by GET /admin/config/all in production (see src/api/creditSummaryApi.ts for the call pattern to follow).
+export const adminConfigAtom = atom<AdminConfigEntry[]>({
+  key: 'adminConfigState',
+  default: MOCK_ADMIN_CONFIG,
+});
+
+
+export interface AdminConfigEntry {
+  key: string;
+  value: string;
+  updated_by: string;
+  updated_on: string; // ISO 8601
+}
+
+
+
+import { useCallback } from 'react';
+import { useRecoilState } from 'recoil';
+import { adminConfigAtom } from '../state/adminConfigAtom';
+
+/** Provides the config table + an update action — simulates the POST /admin/config/{key} round trip locally. */
+export function useAdminConfig() {
+  const [entries, setEntries] = useRecoilState(adminConfigAtom);
+
+  const updateValue = useCallback(
+    (key: string, value: string, updatedBy: string) => {
+      setEntries((rows) =>
+        rows.map((row) =>
+          row.key === key
+            ? { ...row, value, updated_by: updatedBy, updated_on: new Date().toISOString() }
+            : row
+        )
+      );
+    },
+    [setEntries],
+  );
+
+  return { entries, updateValue };
+}
+
+
+       <Route path="/admin" element={<AdminConfigPage />} />
+
+
+import type { AdminConfigEntry } from '../schemas/adminConfig';
+
+export const MOCK_ADMIN_CONFIG: AdminConfigEntry[] = [
+  { key: 'SESSION_TIMEOUT_MINUTES', value: '30', updated_by: 'Golu', updated_on: '2026-05-01T09:12:00Z' },
+  { key: 'MAX_RETRY_ATTEMPTS', value: '3', updated_by: 'System', updated_on: '2026-04-18T14:40:00Z' },
+  { key: 'AI_GATEWAY_TIMEOUT_MS', value: '15000', updated_by: 'Roman Test', updated_on: '2026-05-10T14:32:22Z' },
+  { key: 'DATA_COVERAGE_WARNING_THRESHOLD', value: '70', updated_by: 'Golu', updated_on: '2026-03-22T11:05:00Z' },
+  { key: 'ENABLE_WORD_EXPORT', value: 'true', updated_by: 'System', updated_on: '2026-02-14T08:00:00Z' },
+  { key: 'PILOT_BANNER_ENABLED', value: 'true', updated_by: 'Golu', updated_on: '2026-05-10T14:32:00Z' },
+  { key: 'DEFAULT_MANDATOR_CODE', value: '001', updated_by: 'System', updated_on: '2026-01-09T16:20:00Z' },
+  { key: 'MAX_UPLOAD_SIZE_MB', value: '25', updated_by: 'Roman Test', updated_on: '2026-04-02T10:15:00Z' },
+  {
+    key: 'SECTION_DISPLAY_RULES',
+    value: JSON.stringify({
+      sections: [
+        { id: 'sec-school', displayOrder: 10, visibleOnEnvironment: ['DEV', 'PROD'] },
+          ],
+    }, null, 2),
+    updated_by: 'System',
+    updated_on: '2026-05-12T08:45:00Z',
+  },
+];
+
+
+
