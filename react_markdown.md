@@ -1,5 +1,9 @@
 ### 1.4 Example
 
+"react-markdown":"^10.1.0"
+"remark-gfm":"^4.0.1"
+
+
 ```
 ### Group label
 **Attribute** value
